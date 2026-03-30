@@ -12,6 +12,11 @@ public:
     void adaugaCarte();
     void afiseazaCarti();
     void salveazaInFisier();
+
+    void incarcaDinFisier();
+    void cautaCarte();
+    void editeazaCarte();
+    void stergeCarte();
 };
 
 #endif

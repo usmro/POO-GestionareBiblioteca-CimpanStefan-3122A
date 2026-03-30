@@ -12,6 +12,10 @@ int main() {
         cout << "1. Adauga carte\n";
         cout << "2. Afiseaza carti\n";
         cout << "3. Salveaza in fisier\n";
+        cout << "4. Incarca din fisier\n";
+        cout << "5. Cauta carte\n";
+        cout << "6. Editeaza carte\n";
+        cout << "7. Sterge ultima carte\n";
         cout << "0. Iesire\n";
         cout << "Optiune: ";
         cin >> optiune;
@@ -26,6 +30,19 @@ int main() {
             case 3:
                 b.salveazaInFisier();
                 cout << "Salvat!\n";
+                break;
+            case 4:
+                b.incarcaDinFisier();
+                cout << "Incarcat!\n";
+                break;
+            case 5:
+                b.cautaCarte();
+                break;
+            case 6:
+                b.editeazaCarte();
+                break;
+            case 7:
+                b.stergeCarte();
                 break;
         }
 
