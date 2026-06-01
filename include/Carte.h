@@ -1,35 +1,33 @@
-#ifndef CARTE_H
-#define CARTE_H
+#pragma once
 #include <string>
 
-struct Locatie { 
-    std::string cladire; 
-    int camera; 
-};
-
+// Clasa de Bază
 class Carte {
 protected:
-    std::string titlu, autor;
-    float pret;
+    int id;
+    std::string titlu;
+    std::string autor;
+    std::string sursa; // Donatie, Anticariat, Noua
+
 public:
-    Carte(std::string t, std::string a, float p);
-    virtual ~Carte();
-    virtual void afisareDetalii() const = 0; // Polimorfism
+    Carte(int id, std::string t, std::string a, std::string s);
+    virtual ~Carte() = default;
+
+    virtual std::string getDetaliiComplete() const = 0; // Polimorfism
+    
+    // Getteri
+    int getId() const;
     std::string getTitlu() const;
+    std::string getAutor() const;
+    std::string getSursa() const;
 };
 
+// Clasa Derivată: Cărți Fizice
 class CarteFizica : public Carte {
-    float greutate;
-    Locatie loc;
-public:
-    CarteFizica(std::string t, std::string a, float p, float g, Locatie l);
-    void afisareDetalii() const override;
-};
+private:
+    std::string locatie; // ex: Raionul A1
 
-class CarteDigitala : public Carte {
-    std::string format; // pdf, audiobook
 public:
-    CarteDigitala(std::string t, std::string a, float p, std::string f);
-    void afisareDetalii() const override;
+    CarteFizica(int id, std::string t, std::string a, std::string s, std::string loc);
+    std::string getDetaliiComplete() const override;
 };
-#endif

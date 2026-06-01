@@ -1,15 +1,18 @@
-#ifndef BIBLIOTECA_H
-#define BIBLIOTECA_H
+#pragma once
 #include "Carte.h"
+#include <sqlite3.h>
 #include <vector>
+#include <memory>
+#include <string>
 
 class Biblioteca {
 private:
-    std::vector<Carte*> colectie; // STL Container
+    sqlite3* db;
+
 public:
-    void adaugaCarte(Carte* c);
-    void afisareToate() const;
-    void cautaDupaTitlu(std::string titlu) const; // Motorul de cautare din notite
+    Biblioteca();
     ~Biblioteca();
+
+    void adaugaCarteFizica(const std::string& titlu, const std::string& autor, const std::string& sursa, const std::string& locatie);
+    std::vector<std::unique_ptr<Carte>> getToateCartile();
 };
-#endif
