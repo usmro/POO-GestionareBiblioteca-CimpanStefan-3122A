@@ -1,1 +1,27 @@
+# --- Compilare și Build ---
 build/
+bin/
+out/
+.cmake/
+CMakeUserPresets.json
+
+# --- Securitate (Foarte Important!) ---
+# Aici intră fișierele unde îți vei ține cheia GEMINI_API_KEY local
+.env
+.env.local
+*.env
+
+# --- Editorul de cod / IDE (Opțional, dar recomandat) ---
+# Dacă folosești VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# Dacă folosești CLion / IntelliJ
+.idea/
+cmake-build-debug/
+cmake-build-release/
+
+# Fișiere temporare generate de sistemul de operare
+.DS_Store
+Thumbs.db
