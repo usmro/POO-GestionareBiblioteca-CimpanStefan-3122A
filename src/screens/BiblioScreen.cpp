@@ -4,15 +4,18 @@
 using namespace ftxui;
 
 BiblioScreen::BiblioScreen(AppState& s) : state(s) {
+    // 1. Inițializare butoane Tab (TOATE trebuie inițializate!)
     btn_tab_1 = Button(" 1. Adaugare ", [&]{ tab_index = 0; }, ButtonOption::Animated());
     btn_tab_2 = Button(" 2. Inventar ", [&]{ tab_index = 1; }, ButtonOption::Animated());
     btn_tab_3 = Button(" 3. Imprumuturi ", [&]{ tab_index = 2; }, ButtonOption::Animated());
     btn_tab_4 = Button(" 4. Receptie ", [&]{ tab_index = 3; }, ButtonOption::Animated());
+    btn_tab_5 = Button(" 5. Utilizatori ", [&]{ tab_index = 4; }, ButtonOption::Animated());
 
+    // 2. Tab 1: Adaugare
     inp_t1_titlu = Input(&state.titlu_nou, "Titlu");
     inp_t1_autor = Input(&state.autor_nou, "Autor");
     inp_t1_loc = Input(&state.locatie_nou, "Locatie (ex: A-LitRom)");
-    inp_t1_stoc = Input(&state.carte_an, "Stoc initial (ex: 5)"); // Folosim carte_an pt stoc
+    inp_t1_stoc = Input(&state.carte_an, "Stoc initial (ex: 5)");
     btn_t1_add = MakeSmallBtn(state.limba_selectata, "Adauga Carte", "Add", [&]{
         if(!state.titlu_nou.empty()) {
             int stoc = 1;
@@ -22,11 +25,12 @@ BiblioScreen::BiblioScreen(AppState& s) : state(s) {
             state.titlu_nou = ""; state.autor_nou = ""; state.locatie_nou = ""; state.carte_an = "";
         }
     });
-    std::vector<Component> c1 = {inp_t1_titlu, inp_t1_autor, inp_t1_loc, inp_t1_stoc, btn_t1_add};
-    tab1_container = Container::Vertical(c1);
+    tab1_container = Container::Vertical({inp_t1_titlu, inp_t1_autor, inp_t1_loc, inp_t1_stoc, btn_t1_add});
 
+    // 3. Tab 2: Inventar
     tab2_container = Container::Vertical({});
 
+    // 4. Tab 3: Imprumuturi
     inp_t3_id = Input(&state.id_carte_str, "ID Carte");
     btn_t3_return = MakeSmallBtn(state.limba_selectata, "Fortare Returnare", "Return", [&]{
         if(!state.id_carte_str.empty()) { 
@@ -41,9 +45,9 @@ BiblioScreen::BiblioScreen(AppState& s) : state(s) {
             state.id_carte_str = ""; 
         }
     });
-    std::vector<Component> c3 = {inp_t3_id, btn_t3_return, btn_t3_extend};
-    tab3_container = Container::Vertical(c3);
+    tab3_container = Container::Vertical({inp_t3_id, btn_t3_return, btn_t3_extend});
 
+    // 5. Tab 4: Receptie
     inp_t4_titlu = Input(&state.titlu_nou, "Titlu Marfa");
     inp_t4_autor = Input(&state.autor_nou, "Autor");
     inp_t4_cantitate = Input(&state.carte_an, "Nr. Exemplare");
@@ -55,28 +59,41 @@ BiblioScreen::BiblioScreen(AppState& s) : state(s) {
             state.titlu_nou = ""; state.autor_nou = ""; state.carte_an = "";
         }
     });
-    std::vector<Component> c4 = {inp_t4_titlu, inp_t4_autor, inp_t4_cantitate, btn_t4_receptie};
-    tab4_container = Container::Vertical(c4);
+    tab4_container = Container::Vertical({inp_t4_titlu, inp_t4_autor, inp_t4_cantitate, btn_t4_receptie});
 
-    btn_back = MakeSmallBtn(state.limba_selectata, "Logout", "Logout", [&]{ state.ecran_activ = 0; state.user_curent = ""; state.mesaj_actiune = ""; });
+    // 6. Tab 5: Utilizatori & Statistici (INIȚIALIZARE SIGURĂ)
+    tab5_container = Container::Vertical({});
 
-    std::vector<Component> tabs_content = {tab1_container, tab2_container, tab3_container, tab4_container};
+    // 7. Logout
+    btn_back = MakeSmallBtn(state.limba_selectata, "Logout", "Logout", [&]{ 
+        state.ecran_activ = 0; state.user_curent = ""; state.mesaj_actiune = ""; 
+    });
+
+    // 8. Asamblare Tab-uri Selector
+    std::vector<Component> tabs_content = {tab1_container, tab2_container, tab3_container, tab4_container, tab5_container};
     tab_selector = Container::Tab(tabs_content, &tab_index);
 
+    // 9. Asamblare Container Principal (ORDINEA ESTE CRUCIALĂ)
     std::vector<Component> all_comps;
-    all_comps.push_back(btn_tab_1); all_comps.push_back(btn_tab_2);
-    all_comps.push_back(btn_tab_3); all_comps.push_back(btn_tab_4);
+    all_comps.push_back(btn_tab_1); 
+    all_comps.push_back(btn_tab_2);
+    all_comps.push_back(btn_tab_3); 
+    all_comps.push_back(btn_tab_4);
+    all_comps.push_back(btn_tab_5); // Butonul este inițializat mai sus, deci e sigur
     all_comps.push_back(tab_selector);
     all_comps.push_back(btn_back);
+    
     container = Container::Vertical(all_comps);
 }
 
 Element BiblioScreen::Render() {
+    // Antet cu butoanele de Tab
     Elements tabs_row;
     tabs_row.push_back(btn_tab_1->Render() | (tab_index == 0 ? color(Color::Green) : dim));
     tabs_row.push_back(btn_tab_2->Render() | (tab_index == 1 ? color(Color::Blue) : dim));
     tabs_row.push_back(btn_tab_3->Render() | (tab_index == 2 ? color(Color::Red) : dim));
     tabs_row.push_back(btn_tab_4->Render() | (tab_index == 3 ? color(Color::Magenta) : dim));
+    tabs_row.push_back(btn_tab_5->Render() | (tab_index == 4 ? color(Color::Cyan) : dim));
     Element header = hbox(tabs_row) | border;
 
     Element content;
@@ -129,6 +146,26 @@ Element BiblioScreen::Render() {
         stats.push_back(text("Total titluri in sistem: " + std::to_string(total)));
         stats.push_back(text("Imprumuturi active: " + std::to_string(active)));
         content = vbox(stats);
+    }
+    else if (tab_index == 4) {
+        Elements stats_ui;
+        stats_ui.push_back(text("📊 STATISTICI SISTEM") | bold | color(Color::Cyan));
+        
+        auto stats = state.biblio.getStatisticiSistem();
+        for(auto& s : stats) {
+            stats_ui.push_back(text("  " + s));
+        }
+        
+        stats_ui.push_back(separator());
+        stats_ui.push_back(text("👥 LISTA UTILIZATORI INREGISTRATI") | bold | color(Color::Magenta));
+        
+        auto utilizatori = state.biblio.getTotiUtilizatorii();
+        for(auto& u : utilizatori) {
+            stats_ui.push_back(text("  " + u));
+        }
+        if(utilizatori.empty()) stats_ui.push_back(text("  Niciun utilizator inregistrat.") | dim);
+
+        content = vbox(stats_ui) | flex;
     }
 
     Elements final_content;

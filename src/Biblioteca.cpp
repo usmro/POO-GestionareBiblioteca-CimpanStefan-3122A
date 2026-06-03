@@ -1,6 +1,7 @@
 #include "Biblioteca.h"
 #include <iostream>
 #include <fstream>
+#include <chrono>
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include <openssl/sha.h>
@@ -217,14 +218,54 @@ bool Biblioteca::rezervaCarte(int id_carte, const std::string& nume) { return fa
 bool Biblioteca::prelungesteImprumut(int id_carte) { return true; }
 
 std::vector<std::string> Biblioteca::iaTendinteOnline() {
-    std::vector<std::string> rezultate;
-    std::string url = "https://openlibrary.org/search.json?q=bestseller&limit=5&sort=rating";
+    std::string cache_file = "trending_cache.txt";
+    std::vector<std::string> cached_results;
+    bool use_cache = false;
+
+    // 1. ÎNCERCĂM SĂ CITIM DIN CACHE (Instantaneu, nu blochează)
+    std::ifstream infile(cache_file);
+    if (infile.is_open()) {
+        std::string timestamp_str;
+        if (std::getline(infile, timestamp_str)) {
+            try {
+                long long saved_time = std::stoll(timestamp_str);
+                long long current_time = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::system_clock::now().time_since_epoch()
+                ).count();
+                
+                // Dacă cache-ul are mai puțin de 24 de ore (86400 secunde)
+                if (current_time - saved_time < 86400) {
+                    std::string line;
+                    while (std::getline(infile, line)) {
+                        if (!line.empty()) cached_results.push_back(line);
+                    }
+                    use_cache = true;
+                }
+            } catch (...) {
+                // Dacă formatul e greșit, ignorăm și descărcăm din nou
+            }
+        }
+        infile.close();
+    }
+
+    // 2. DACĂ AVEM CACHE VALID, RETURNĂM INSTANT (FĂRĂ BLOCARE)
+    if (use_cache) {
+        return cached_results;
+    }
+
+    // 3. DACĂ NU AVEM CACHE (SAU E EXPIRAT), DESCĂRCĂM DE PE INTERNET
+    // Sortăm după edition_count (cel mai bun indicator de popularitate reală)
+    std::string url = "https://openlibrary.org/search.json?q=*&sort=edition_count&limit=5";
     
+    // Timeout redus la 3 secunde ca să nu aștepte la infinit dacă netul e prost
     auto r = cpr::Get(
-        cpr::Url{url},
-        cpr::Timeout{10000},
-        cpr::VerifySsl(false)
+        cpr::Url{url}, 
+        cpr::Timeout{5000}, 
+        cpr::VerifySsl(false),
+        cpr::Header{{"User-Agent", "BiblioManagerApp/1.0"}} // <--- ACEASTA LINIE REPARĂ CONEXIUNEA
     );
+
+    std::vector<std::string> fresh_results;
 
     if (r.status_code == 200) {
         try {
@@ -236,20 +277,40 @@ std::vector<std::string> Biblioteca::iaTendinteOnline() {
                     if (carte.contains("author_name") && !carte["author_name"].empty()) {
                         autor = carte["author_name"][0].get<std::string>();
                     }
-                    rezultate.push_back("🌟 " + titlu + " - " + autor);
+                    int an = carte.value("first_publish_year", 0);
+                    std::string an_str = (an > 0) ? " (" + std::to_string(an) + ")" : "";
+                    fresh_results.push_back("🔥 " + titlu + " - " + autor + an_str);
                 }
             }
         } catch (...) {
-            rezultate.push_back("Eroare la procesarea datelor.");
+            fresh_results.push_back("Eroare procesare date JSON.");
         }
-    } else {
-        rezultate.push_back("Eroare conexiune. Se afiseaza tendinte locale:");
-        rezultate.push_back("🌟 Stapanul Inelelor - J.R.R. Tolkien");
-        rezultate.push_back("🌟 Dune - Frank Herbert");
-        rezultate.push_back("🌟 Ion - Liviu Rebreanu");
-    }
+    } 
     
-    return rezultate;
+    // 4. FALLBACK: Dacă netul pică sau API-ul e jos, arătăm o listă locală credibilă
+    if (fresh_results.empty()) {
+        fresh_results.push_back("⚠️ Conectare eșuată. Se afișează clasice locale:");
+        fresh_results.push_back("🔥 Stăpânul Inelelor - J.R.R. Tolkien (1954)");
+        fresh_results.push_back("🔥 Dune - Frank Herbert (1965)");
+        fresh_results.push_back("🔥 Ion - Liviu Rebreanu (1920)");
+        fresh_results.push_back("🔥 1984 - George Orwell (1949)");
+        fresh_results.push_back("🔥 Micul Prinț - Antoine de Saint-Exupéry (1943)");
+    }
+
+    // 5. SALVĂM NOILE REZULTATE ÎN CACHE PENTRU DATA VIITOARE
+    std::ofstream outfile(cache_file);
+    if (outfile.is_open()) {
+        long long current_time = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()
+        ).count();
+        outfile << current_time << "\n"; // Prima linie este timestamp-ul
+        for (const auto& line : fresh_results) {
+            outfile << line << "\n";
+        }
+        outfile.close();
+    }
+
+    return fresh_results;
 }
 
 std::vector<std::string> Biblioteca::getCartiPentruUser() {
@@ -284,20 +345,117 @@ std::vector<std::string> Biblioteca::getCartiDisponibilePentruUser() {
     return lista;
 }
 
+// Adaugare functii bibliotecar panel
+std::vector<std::string> Biblioteca::getStatisticiSistem() {
+    std::vector<std::string> stats;
+    sqlite3_stmt* stmt;
+    
+    int total_titluri = 0;
+    if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM Carti;", -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) total_titluri = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    stats.push_back("📚 Total titluri unice: " + std::to_string(total_titluri));
+
+    int total_exemplare = 0;
+    if (sqlite3_prepare_v2(db, "SELECT SUM(stoc) FROM Carti;", -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            // Verificăm dacă SUM returnează NULL (dacă tabela e goală)
+            if (sqlite3_column_type(stmt, 0) != SQLITE_NULL) {
+                total_exemplare = sqlite3_column_int(stmt, 0);
+            }
+        }
+    }
+    sqlite3_finalize(stmt);
+    stats.push_back("📦 Total exemplare fizice: " + std::to_string(total_exemplare));
+
+    int total_utilizatori = 0;
+    if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM Cititori WHERE rol = 'user';", -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) total_utilizatori = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    stats.push_back("👥 Total utilizatori înregistrați: " + std::to_string(total_utilizatori));
+
+    int imprumuturi_active = 0;
+    if (sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM Imprumuturi WHERE data_returnare = '';", -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) imprumuturi_active = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    stats.push_back("🔄 Împrumuturi active momentan: " + std::to_string(imprumuturi_active));
+
+    return stats;
+}
+
+std::vector<std::string> Biblioteca::getTotiUtilizatorii() {
+    std::vector<std::string> lista;
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, "SELECT nume, rol FROM Cititori ORDER BY nume;", -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            // Verificăm dacă valorile sunt NULL pentru a evita crash-ul la std::string
+            const char* nume_ptr = (const char*)sqlite3_column_text(stmt, 0);
+            const char* rol_ptr = (const char*)sqlite3_column_text(stmt, 1);
+            
+            std::string nume = nume_ptr ? nume_ptr : "Necunoscut";
+            std::string rol = rol_ptr ? rol_ptr : "user";
+            
+            std::string iconita = (rol == "admin") ? "👑" : (rol == "bibliotecar" ? "📚" : "👤");
+            lista.push_back(iconita + " " + nume + " (" + rol + ")");
+        }
+    }
+    sqlite3_finalize(stmt);
+    return lista;
+}
+
 std::string Biblioteca::intreabaBiblioAI(const std::string& prompt) {
     std::string apiKey = "";
     std::ifstream envFile(".env");
+    
+    // 1. Verificăm dacă fișierul .env există
     if (envFile.is_open()) {
         std::string linie;
         while (std::getline(envFile, linie)) {
-            if (linie.find("GEMINI_API_KEY=") == 0) { apiKey = linie.substr(15); break; }
+            // Căutăm linia care începe cu GEMINI_API_KEY=
+            if (linie.find("GEMINI_API_KEY=") == 0) {
+                apiKey = linie.substr(15); // Luăm tot ce e după "="
+                break;
+            }
         }
         envFile.close();
+    } else {
+        // 2. MESAJ CLAR DACĂ FIȘIERUL LIPSEȘTE
+        return "⚠️ Eroare: Fișierul '.env' nu a fost găsit!\n"
+               "Pentru a folosi BiblioAI, creează un fișier numit '.env' în folderul 'build' și adaugă linia:\n"
+               "GEMINI_API_KEY=cheia_ta_aici";
     }
-    if (apiKey.empty()) return "EROARE: Fisierul .env nu a fost gasit!";
+
+    // 3. Verificăm dacă cheia este goală în interiorul fișierului
+    if (apiKey.empty()) {
+        return "⚠️ Eroare: Cheia API este goală în fișierul '.env'!\n"
+               "Te rog să editezi fișierul '.env' și să pui cheia ta validă de la Google Gemini.";
+    }
+
+    // 4. Dacă avem cheie, facem cererea către API
     std::string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-    json body = {{"contents", json::array({{{"parts", json::array({{{"text", "Esti BiblioAI, un bibliotecar robot politicos. Raspunde scurt: " + prompt}}})}}})}};
-    auto r = cpr::Post(cpr::Url{url}, cpr::Header{{"Content-Type", "application/json"}}, cpr::Body{body.dump()});
-    if (r.status_code == 200) { try { return json::parse(r.text)["candidates"][0]["content"]["parts"][0]["text"]; } catch (...) { return "Eroare AI."; } }
-    return "Eroare de retea.";
+    
+    json body = {
+        {"contents", json::array({
+            {{"parts", json::array({{{"text", "Esti BiblioAI, un bibliotecar robot politicos si scurt. Raspunde la: " + prompt}}})}}
+        })}
+    };
+
+    auto r = cpr::Post(
+        cpr::Url{url}, 
+        cpr::Header{{"Content-Type", "application/json"}}, 
+        cpr::Body{body.dump()}
+    );
+
+    if (r.status_code == 200) {
+        try {
+            return json::parse(r.text)["candidates"][0]["content"]["parts"][0]["text"];
+        } catch (...) {
+            return "Eroare la procesarea răspunsului de la AI.";
+        }
+    } else {
+        return "Eroare de rețea sau cheie API invalidă. Cod eroare: " + std::to_string(r.status_code);
+    }
 }

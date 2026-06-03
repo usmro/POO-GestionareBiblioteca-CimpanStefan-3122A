@@ -12,6 +12,10 @@ public:
     Biblioteca();
     ~Biblioteca();
 
+    // User 
+    std::vector<std::string> getTotiUtilizatorii();
+    std::vector<std::string> getStatisticiSistem();
+
     void adaugaCarte(const std::string& titlu, const std::string& autor, const std::string& isbn, const std::string& editura, const std::string& an, const std::string& locatie, int stoc);
     void stergeCarte(int id);
     std::vector<std::string> getToateCartile();
