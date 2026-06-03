@@ -273,15 +273,15 @@ Tratarea erorilor și validarea inputului.
 
 ## 🏠 Ecran Principal
 
-```text
+
 ![Ecran Principal](https://i.postimg.cc/gJyvWStW/image.png)
-```
+
 
 ## 📚 Panou Bibliotecar
 
-```text
+
 ![Ecran Bibliotecar](https://i.postimg.cc/8zVNFZtK/image.png)
-```
+
 
 ---
 
