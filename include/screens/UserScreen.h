@@ -11,5 +11,7 @@ public:
 
 private:
     AppState& state;
-    ftxui::Component inp_id, btn_imprumuta, btn_returneaza, btn_back, container;
+    ftxui::Component inp_id, btn_imprumuta, btn_returneaza, btn_back;
+    ftxui::Component inp_cautare, btn_cauta, btn_rezerva, btn_prelungeste;  // <--- ADĂUGATE
+    ftxui::Component container;
 };

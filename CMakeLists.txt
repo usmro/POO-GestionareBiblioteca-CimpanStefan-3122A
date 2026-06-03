@@ -36,6 +36,7 @@ set(SOURCES
     src/BiblioAI.cpp
     src/screens/StartScreen.cpp
     src/screens/LoginScreen.cpp
+    src/screens/GuestScreen.cpp    # <--- ADĂUGAT
     src/screens/UserScreen.cpp
     src/screens/BiblioScreen.cpp
     src/screens/AdminScreen.cpp

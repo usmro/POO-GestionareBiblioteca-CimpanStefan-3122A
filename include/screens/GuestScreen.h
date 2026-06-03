@@ -3,14 +3,12 @@
 #include <ftxui/dom/elements.hpp>
 #include "AppState.h"
 
-class BiblioScreen {
+class GuestScreen {
 public:
-    BiblioScreen(AppState& state);
+    GuestScreen(AppState& state);
     ftxui::Component Get() { return container; }
     ftxui::Element Render();
 private:
     AppState& state;
-    ftxui::Component inp_titlu, inp_autor, inp_locatie, btn_add;
-    ftxui::Component inp_id_sterge, btn_sterge;  // <--- ADĂUGATE
     ftxui::Component btn_back, container;
 };

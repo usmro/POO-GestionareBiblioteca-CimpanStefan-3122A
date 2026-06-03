@@ -33,6 +33,9 @@ struct AppState {
     
     // User/Cititor
     std::string id_carte_str = "";
+    std::string query_cautare = "";           // <--- ADĂUGAT
+    std::vector<std::string> lista_cautare;   // <--- ADĂUGAT
+    bool afiseaza_rezultate_cautare = false;  // <--- ADĂUGAT
     
     // Bibliotecar
     std::string titlu_nou = "";
