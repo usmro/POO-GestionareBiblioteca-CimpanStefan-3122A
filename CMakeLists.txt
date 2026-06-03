@@ -40,6 +40,7 @@ set(SOURCES
     src/screens/UserScreen.cpp
     src/screens/BiblioScreen.cpp
     src/screens/AdminScreen.cpp
+    src/screens/RegisterScreen.cpp
 )
 
 add_executable(biblioteca_app ${SOURCES})
@@ -53,6 +54,7 @@ target_link_libraries(biblioteca_app PRIVATE
     cpr::cpr 
     nlohmann_json::nlohmann_json
     SQLite::SQLite3
+    crypto
 )
 
 target_include_directories(biblioteca_app PRIVATE ${CMAKE_SOURCE_DIR}/include)

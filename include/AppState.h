@@ -28,7 +28,10 @@ struct AppState {
     
     // Register
     std::string reg_user = "";
+    std::string reg_email = "";
     std::string reg_pass = "";
+    std::string reg_pass_confirm = "";
+    std::string reg_cod_biblio = ""; // Câmpul secret pentru rol
     std::string mesaj_reg = "";
     
     // User/Cititor
@@ -40,6 +43,9 @@ struct AppState {
     // Bibliotecar
     std::string titlu_nou = "";
     std::string autor_nou = "";
+    std::string carte_isbn = "";
+    std::string carte_editura = "";
+    std::string carte_an = "";
     std::string locatie_nou = "";
     
     // Admin

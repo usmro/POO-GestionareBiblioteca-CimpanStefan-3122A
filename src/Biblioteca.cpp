@@ -3,27 +3,85 @@
 #include <fstream>
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
+#include <openssl/sha.h>
+#include <sstream>
+#include <iomanip>
 
 using json = nlohmann::json;
 
+// Funcție helper pentru SHA-256
+std::string hashuiesteParola(const std::string& parola) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)parola.c_str(), parola.length(), hash);
+    std::ostringstream oss;
+    for(int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    return oss.str();
+}
+
 Biblioteca::Biblioteca() {
     if (sqlite3_open("biblioteca.db", &db) != SQLITE_OK) {
-        std::cerr << "EROARE CRITICĂ: Nu s-a putut deschide baza de date!" << std::endl;
+        std::cerr << "EROARE DB!" << std::endl;
         exit(1);
     }
     
-    // Creăm tabelele de bază
+    // Tabele
     sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS Carti (id INTEGER PRIMARY KEY AUTOINCREMENT, titlu TEXT, autor TEXT, sursa TEXT, locatie TEXT, imprumutat_la TEXT DEFAULT '', rezervat_de TEXT DEFAULT '');", nullptr, nullptr, nullptr);
-    sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS Cititori (id INTEGER PRIMARY KEY AUTOINCREMENT, nume TEXT UNIQUE);", nullptr, nullptr, nullptr);
+
+    sqlite3_exec(db, "ALTER TABLE Carti ADD COLUMN isbn TEXT DEFAULT 'N/A';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "ALTER TABLE Carti ADD COLUMN editura TEXT DEFAULT 'N/A';", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "ALTER TABLE Carti ADD COLUMN an_publicare TEXT DEFAULT 'N/A';", nullptr, nullptr, nullptr);
+
+    sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS Cititori (id INTEGER PRIMARY KEY AUTOINCREMENT, nume TEXT UNIQUE, email TEXT UNIQUE, parola TEXT, rol TEXT DEFAULT 'user');", nullptr, nullptr, nullptr);
     
-    // Încercăm să adăugăm coloana 'rezervat_de' dacă nu există (pentru bazele de date vechi)
-    sqlite3_exec(db, "ALTER TABLE Carti ADD COLUMN rezervat_de TEXT DEFAULT '';", nullptr, nullptr, nullptr);
+    // Actualizări tabele vechi
+    sqlite3_exec(db, "ALTER TABLE Cititori ADD COLUMN email TEXT;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "ALTER TABLE Cititori ADD COLUMN parola TEXT;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "ALTER TABLE Cititori ADD COLUMN rol TEXT DEFAULT 'user';", nullptr, nullptr, nullptr);
+
+    // Conturi implicite
+    std::string admin_pass_hash = hashuiesteParola("admin123");
+    sqlite3_exec(db, ("INSERT OR IGNORE INTO Cititori (nume, parola, rol) VALUES ('admin', '" + admin_pass_hash + "', 'admin');").c_str(), nullptr, nullptr, nullptr);
+
+    std::string biblio_pass_hash = hashuiesteParola("1234");
+    sqlite3_exec(db, ("INSERT OR IGNORE INTO Cititori (nume, parola, rol) VALUES ('biblio', '" + biblio_pass_hash + "', 'bibliotecar');").c_str(), nullptr, nullptr, nullptr);
 }
 
-Biblioteca::~Biblioteca() { if (db != nullptr) sqlite3_close(db); }
+Biblioteca::~Biblioteca() { 
+    if (db != nullptr) sqlite3_close(db); 
+}
 
-void Biblioteca::adaugaCarteFizica(const std::string& titlu, const std::string& autor, const std::string& sursa, const std::string& locatie) {
-    std::string q = "INSERT INTO Carti (titlu, autor, sursa, locatie) VALUES ('" + titlu + "', '" + autor + "', '" + sursa + "', '" + locatie + "');";
+// --- AUTENTIFICARE SECURIZATĂ ---
+std::string Biblioteca::autentificaUtilizator(const std::string& nume, const std::string& parola) {
+    std::string parola_hash = hashuiesteParola(parola);
+    sqlite3_stmt* stmt;
+    std::string rol = "";
+    
+    std::string q = "SELECT rol FROM Cititori WHERE nume = ? AND parola = ?;";
+    if (sqlite3_prepare_v2(db, q.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, nume.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, parola_hash.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char* text = (const char*)sqlite3_column_text(stmt, 0);
+            if (text) rol = text;
+        }
+    }
+    sqlite3_finalize(stmt);
+    return rol;
+}
+
+// --- ÎNREGISTRARE SECURIZATĂ ---
+bool Biblioteca::inregistreazaUtilizator(const std::string& nume, const std::string& email, const std::string& parola) {
+    std::string parola_hash = hashuiesteParola(parola);
+    std::string q = "INSERT INTO Cititori (nume, email, parola, rol) VALUES ('" + nume + "', '" + email + "', '" + parola_hash + "', 'user');";
+    int res = sqlite3_exec(db, q.c_str(), nullptr, nullptr, nullptr);
+    return res == SQLITE_OK;
+}
+
+// --- GESTIUNE CĂRȚI ---
+void Biblioteca::adaugaCarteFizica(const std::string& titlu, const std::string& autor, const std::string& isbn, const std::string& editura, const std::string& an, const std::string& locatie) {
+    std::string q = "INSERT INTO Carti (titlu, autor, isbn, editura, an_publicare, locatie) VALUES ('" + 
+                    titlu + "', '" + autor + "', '" + isbn + "', '" + editura + "', '" + an + "', '" + locatie + "');";
     sqlite3_exec(db, q.c_str(), nullptr, nullptr, nullptr);
 }
 
@@ -80,11 +138,7 @@ std::vector<std::string> Biblioteca::cautaCarti(const std::string& query) {
     return lista;
 }
 
-void Biblioteca::adaugaCititor(const std::string& nume) {
-    std::string q = "INSERT OR IGNORE INTO Cititori (nume) VALUES ('" + nume + "');";
-    sqlite3_exec(db, q.c_str(), nullptr, nullptr, nullptr);
-}
-
+// --- GESTIUNE CITITORI & ÎMPRUMUTURI ---
 std::vector<std::string> Biblioteca::getCititori() {
     std::vector<std::string> lista;
     sqlite3_stmt* stmt;
@@ -96,7 +150,6 @@ std::vector<std::string> Biblioteca::getCititori() {
 }
 
 bool Biblioteca::imprumutaCarte(int id_carte, const std::string& nume_cititor) {
-    // Verificăm să nu fie deja rezervată de altcineva
     std::string q = "UPDATE Carti SET imprumutat_la = '" + nume_cititor + "', rezervat_de = '' WHERE id = " + std::to_string(id_carte) + " AND imprumutat_la = '';";
     sqlite3_exec(db, q.c_str(), nullptr, nullptr, nullptr);
     return sqlite3_changes(db) > 0;
@@ -115,8 +168,6 @@ bool Biblioteca::rezervaCarte(int id_carte, const std::string& nume_cititor) {
 }
 
 bool Biblioteca::prelungesteImprumut(int id_carte) {
-    // Într-o aplicație reală am actualiza o coloană 'termen_limita'. 
-    // Aici simulăm succesul dacă cartea este împrumutată.
     std::string q = "UPDATE Carti SET termen_limita = 'prelungit' WHERE id = " + std::to_string(id_carte) + " AND imprumutat_la != '';";
     sqlite3_exec(db, q.c_str(), nullptr, nullptr, nullptr);
     return sqlite3_changes(db) > 0;
@@ -128,6 +179,22 @@ bool Biblioteca::anuleazaRezervare(int id_carte) {
     return sqlite3_changes(db) > 0;
 }
 
+std::vector<std::string> Biblioteca::getCartiImprumutate() {
+    std::vector<std::string> lista;
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, "SELECT id, titlu, imprumutat_la FROM Carti WHERE imprumutat_la != '';", -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            int id = sqlite3_column_int(stmt, 0);
+            std::string t = (const char*)sqlite3_column_text(stmt, 1);
+            std::string u = (const char*)sqlite3_column_text(stmt, 2);
+            lista.push_back("ID " + std::to_string(id) + " | " + t + " -> la: " + u);
+        }
+    }
+    sqlite3_finalize(stmt);
+    return lista;
+}
+
+// --- AI GEMINI ---
 std::string Biblioteca::intreabaBiblioAI(const std::string& prompt) {
     std::string apiKey = "";
     std::ifstream envFile(".env");
