@@ -6,7 +6,6 @@
 ![SQLite](https://img.shields.io/badge/Database-SQLite3-green)
 ![FTXUI](https://img.shields.io/badge/UI-FTXUI-orange)
 ![OpenSSL](https://img.shields.io/badge/Security-SHA256-red)
-![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
 
@@ -21,7 +20,7 @@ Proiectul a fost realizat pentru cursul de **Programare Orientată pe Obiecte** 
 * 🔒 Securitate și hashing SHA-256
 * 🌐 Integrare API-uri externe
 * 🎨 Interfață terminal modernă cu FTXUI
-* 🤖 Integrare AI prin Google Gemini
+* 🤖 Integrare AI prin Groq
 
 ---
 
@@ -53,7 +52,7 @@ Proiectul a fost realizat pentru cursul de **Programare Orientată pe Obiecte** 
 
 ### BiblioAI
 
-Asistent virtual bazat pe **Google Gemini API** pentru recomandări și informații despre cărți.
+Asistent virtual bazat pe **Groq** pentru recomandări și informații despre cărți.
 
 ### Open Library Integration
 
@@ -275,37 +274,15 @@ Tratarea erorilor și validarea inputului.
 ## 🏠 Ecran Principal
 
 ```text
-[ Adaugă aici screenshot-ul principal ]
+![Ecran Principal](https://i.postimg.cc/gJyvWStW/image.png)
 ```
 
 ## 📚 Panou Bibliotecar
 
 ```text
-[ Adaugă aici screenshot-ul bibliotecarului ]
+![Ecran Bibliotecar](https://i.postimg.cc/8zVNFZtK/image.png)
 ```
 
 ---
-
-# 🤝 Contribuții
-
-Contribuțiile sunt binevenite.
-
-1. Fork repository
-2. Creează un branch nou
-3. Commit modificările
-4. Push către branch
-5. Deschide un Pull Request
-
----
-
-# 📄 Licență
-
-Acest proiect este distribuit sub licența MIT.
-
----
-
-## 👨‍💻 Autor
-
-Dezvoltat pentru cursul de **Programare Orientată pe Obiecte**.
 
 ⭐ Dacă proiectul ți-a fost util, oferă un star repository-ului.
