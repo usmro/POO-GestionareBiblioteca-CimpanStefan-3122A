@@ -39,6 +39,7 @@ struct AppState {
     std::string query_cautare = "";           // <--- ADĂUGAT
     std::vector<std::string> lista_cautare;   // <--- ADĂUGAT
     bool afiseaza_rezultate_cautare = false;  // <--- ADĂUGAT
+    int mod_vizualizare_user = 0; // 0=Toate, 1=Libere, 2=Cartile mele      // Adaugat recent
     
     // Bibliotecar
     std::string titlu_nou = "";
@@ -47,6 +48,10 @@ struct AppState {
     std::string carte_editura = "";
     std::string carte_an = "";
     std::string locatie_nou = "";
+
+    // Tendinte
+    std::vector<std::string> lista_tendinte;
+    bool arata_tendinte = false;
     
     // Admin
     std::string cititor_nou = "";

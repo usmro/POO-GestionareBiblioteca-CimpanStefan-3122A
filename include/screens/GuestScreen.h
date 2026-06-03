@@ -8,7 +8,13 @@ public:
     GuestScreen(AppState& state);
     ftxui::Component Get() { return container; }
     ftxui::Element Render();
+
 private:
     AppState& state;
+    // Căutare
+    ftxui::Component inp_cautare, btn_cauta;
+    // Tendințe
+    ftxui::Component btn_tendinte;
+    // Navigare
     ftxui::Component btn_back, container;
 };

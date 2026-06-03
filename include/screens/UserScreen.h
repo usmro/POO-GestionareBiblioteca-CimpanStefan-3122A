@@ -11,7 +11,9 @@ public:
 
 private:
     AppState& state;
-    ftxui::Component inp_id, btn_imprumuta, btn_returneaza, btn_back;
-    ftxui::Component inp_cautare, btn_cauta, btn_rezerva, btn_prelungeste;  // <--- ADĂUGATE
-    ftxui::Component container;
+    int scroll_index = 0;
+    ftxui::Component inp_cautare, btn_cauta, inp_id;
+    ftxui::Component btn_imprumuta, btn_returneaza, btn_rezerva, btn_prelungeste, btn_vezi_mele;
+    ftxui::Component btn_filtru_toate, btn_filtru_libere, btn_filtru_mele; // Butoanele de filtru
+    ftxui::Component btn_back, container;
 };

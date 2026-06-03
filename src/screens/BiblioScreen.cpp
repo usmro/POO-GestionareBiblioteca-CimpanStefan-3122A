@@ -4,119 +4,138 @@
 using namespace ftxui;
 
 BiblioScreen::BiblioScreen(AppState& s) : state(s) {
-    // --- TAB 1: ADĂUGARE CARTE ---
-    inp_titlu = Input(&state.titlu_nou, "Titlu");
-    inp_autor = Input(&state.autor_nou, "Autor");
-    inp_isbn = Input(&state.carte_isbn, "ISBN / ISSN");
-    inp_editura = Input(&state.carte_editura, "Editura");
-    inp_an = Input(&state.carte_an, "An Aparitie");
-    inp_locatie = Input(&state.locatie_nou, "Locatie (ex: Raion A1)");
-    
-    btn_add = MakeSmallBtn(state.limba_selectata, "Adauga in Inventar", "Add to Inventory", [&]{
+    btn_tab_1 = Button(" 1. Adaugare ", [&]{ tab_index = 0; }, ButtonOption::Animated());
+    btn_tab_2 = Button(" 2. Inventar ", [&]{ tab_index = 1; }, ButtonOption::Animated());
+    btn_tab_3 = Button(" 3. Imprumuturi ", [&]{ tab_index = 2; }, ButtonOption::Animated());
+    btn_tab_4 = Button(" 4. Receptie ", [&]{ tab_index = 3; }, ButtonOption::Animated());
+
+    inp_t1_titlu = Input(&state.titlu_nou, "Titlu");
+    inp_t1_autor = Input(&state.autor_nou, "Autor");
+    inp_t1_loc = Input(&state.locatie_nou, "Locatie (ex: A-LitRom)");
+    inp_t1_stoc = Input(&state.carte_an, "Stoc initial (ex: 5)"); // Folosim carte_an pt stoc
+    btn_t1_add = MakeSmallBtn(state.limba_selectata, "Adauga Carte", "Add", [&]{
         if(!state.titlu_nou.empty()) {
-            state.biblio.adaugaCarteFizica(state.titlu_nou, state.autor_nou, state.carte_isbn, state.carte_editura, state.carte_an, state.locatie_nou);
-            state.mesaj_actiune = "Carte adaugata cu succes!";
-            state.titlu_nou = ""; state.autor_nou = ""; state.carte_isbn = ""; state.carte_editura = ""; state.carte_an = ""; state.locatie_nou = "";
-        } else { state.mesaj_actiune = "Titlul este obligatoriu!"; }
-    });
-
-    std::vector<Component> t1;
-    t1.push_back(inp_titlu); t1.push_back(inp_autor); t1.push_back(inp_isbn);
-    t1.push_back(inp_editura); t1.push_back(inp_an); t1.push_back(inp_locatie);
-    t1.push_back(btn_add);
-    tab1_container = Container::Vertical(t1);
-
-    // --- TAB 2: INVENTAR ---
-    btn_back_inv = MakeSmallBtn(state.limba_selectata, "Refresh Lista", "Refresh List", [&]{ state.mesaj_actiune = "Lista actualizata!"; });
-    std::vector<Component> t2;
-    t2.push_back(btn_back_inv);
-    tab2_container = Container::Vertical(t2);
-
-    // --- TAB 3: GESTIUNE ÎMPRUMUTURI ---
-    inp_id_return = Input(&state.id_carte_str, "ID Carte");
-    btn_force_return = MakeSmallBtn(state.limba_selectata, "Fortare Returnare", "Force Return", [&]{
-        if(!state.id_carte_str.empty()) {
-            state.biblio.returneazaCarte(std::stoi(state.id_carte_str));
-            state.mesaj_actiune = "Carte returnata fortat!"; state.id_carte_str = "";
+            int stoc = 1;
+            try { if(!state.carte_an.empty()) stoc = std::stoi(state.carte_an); } catch(...) {}
+            state.biblio.adaugaCarte(state.titlu_nou, state.autor_nou, "N/A", "N/A", "N/A", state.locatie_nou, stoc);
+            state.mesaj_actiune = "Adaugat cu stoc " + std::to_string(stoc) + "!";
+            state.titlu_nou = ""; state.autor_nou = ""; state.locatie_nou = ""; state.carte_an = "";
         }
     });
-    btn_extend = MakeSmallBtn(state.limba_selectata, "Prelungeste Termen", "Extend Term", [&]{
-        if(!state.id_carte_str.empty()) {
-            state.biblio.prelungesteImprumut(std::stoi(state.id_carte_str));
-            state.mesaj_actiune = "Termen prelungit!"; state.id_carte_str = "";
+    std::vector<Component> c1 = {inp_t1_titlu, inp_t1_autor, inp_t1_loc, inp_t1_stoc, btn_t1_add};
+    tab1_container = Container::Vertical(c1);
+
+    tab2_container = Container::Vertical({});
+
+    inp_t3_id = Input(&state.id_carte_str, "ID Carte");
+    btn_t3_return = MakeSmallBtn(state.limba_selectata, "Fortare Returnare", "Return", [&]{
+        if(!state.id_carte_str.empty()) { 
+            if(state.biblio.returneazaFortat(std::stoi(state.id_carte_str))) state.mesaj_actiune = "Returnata fortat!"; 
+            else state.mesaj_actiune = "Eroare! ID invalid.";
+            state.id_carte_str = ""; 
         }
     });
-
-    std::vector<Component> t3;
-    t3.push_back(inp_id_return); t3.push_back(btn_force_return); t3.push_back(btn_extend);
-    tab3_container = Container::Vertical(t3);
-
-    // --- TAB-URI INTERNE ȘI BUTON DE LOGOUT ---
-    std::vector<Component> tabs;
-    tabs.push_back(tab1_container);
-    tabs.push_back(tab2_container);
-    tabs.push_back(tab3_container);
-    tab_selector = Container::Tab(tabs, &tab_biblio_index);
-
-    btn_back = MakeSmallBtn(state.limba_selectata, "Logout", "Logout", [&]{ 
-        state.ecran_activ = 0; state.user_curent = ""; state.mesaj_actiune = "";
+    btn_t3_extend = MakeSmallBtn(state.limba_selectata, "Prelungeste", "Extend", [&]{
+        if(!state.id_carte_str.empty()) { 
+            if(state.biblio.prelungesteImprumut(std::stoi(state.id_carte_str))) state.mesaj_actiune = "Prelungit!";
+            state.id_carte_str = ""; 
+        }
     });
+    std::vector<Component> c3 = {inp_t3_id, btn_t3_return, btn_t3_extend};
+    tab3_container = Container::Vertical(c3);
 
-    std::vector<Component> main_comps;
-    main_comps.push_back(tab_selector);
-    main_comps.push_back(btn_back);
-    container = Container::Vertical(main_comps);
+    inp_t4_titlu = Input(&state.titlu_nou, "Titlu Marfa");
+    inp_t4_autor = Input(&state.autor_nou, "Autor");
+    inp_t4_cantitate = Input(&state.carte_an, "Nr. Exemplare");
+    btn_t4_receptie = MakeSmallBtn(state.limba_selectata, "Receptioneaza Marfa", "Receive", [&]{
+        if(!state.titlu_nou.empty() && !state.carte_an.empty()) {
+            int cantitate = std::stoi(state.carte_an);
+            state.biblio.adaugaCarte(state.titlu_nou, state.autor_nou, "N/A", "N/A", "N/A", "Depozit", cantitate);
+            state.mesaj_actiune = "Au fost receptionate " + std::to_string(cantitate) + " exemplare!";
+            state.titlu_nou = ""; state.autor_nou = ""; state.carte_an = "";
+        }
+    });
+    std::vector<Component> c4 = {inp_t4_titlu, inp_t4_autor, inp_t4_cantitate, btn_t4_receptie};
+    tab4_container = Container::Vertical(c4);
+
+    btn_back = MakeSmallBtn(state.limba_selectata, "Logout", "Logout", [&]{ state.ecran_activ = 0; state.user_curent = ""; state.mesaj_actiune = ""; });
+
+    std::vector<Component> tabs_content = {tab1_container, tab2_container, tab3_container, tab4_container};
+    tab_selector = Container::Tab(tabs_content, &tab_index);
+
+    std::vector<Component> all_comps;
+    all_comps.push_back(btn_tab_1); all_comps.push_back(btn_tab_2);
+    all_comps.push_back(btn_tab_3); all_comps.push_back(btn_tab_4);
+    all_comps.push_back(tab_selector);
+    all_comps.push_back(btn_back);
+    container = Container::Vertical(all_comps);
 }
 
 Element BiblioScreen::Render() {
-    // Titluri pentru Tab-uri
-    Elements tab_titles;
-    tab_titles.push_back(text(" 1. Adaugare ") | (tab_biblio_index == 0 ? bold | color(Color::Green) : dim));
-    tab_titles.push_back(text(" 2. Inventar ") | (tab_biblio_index == 1 ? bold | color(Color::Blue) : dim));
-    tab_titles.push_back(text(" 3. Imprumuturi ") | (tab_biblio_index == 2 ? bold | color(Color::Red) : dim));
-    
-    Element header_tabs = hbox(tab_titles) | border;
+    Elements tabs_row;
+    tabs_row.push_back(btn_tab_1->Render() | (tab_index == 0 ? color(Color::Green) : dim));
+    tabs_row.push_back(btn_tab_2->Render() | (tab_index == 1 ? color(Color::Blue) : dim));
+    tabs_row.push_back(btn_tab_3->Render() | (tab_index == 2 ? color(Color::Red) : dim));
+    tabs_row.push_back(btn_tab_4->Render() | (tab_index == 3 ? color(Color::Magenta) : dim));
+    Element header = hbox(tabs_row) | border;
 
     Element content;
     
-    if (tab_biblio_index == 0) {
+    if (tab_index == 0) {
         Elements form;
-        form.push_back(text("Formular Adaugare Carte") | bold | underlined);
-        form.push_back(inp_titlu->Render() | border);
-        form.push_back(inp_autor->Render() | border);
-        
-        Elements row2; row2.push_back(inp_isbn->Render() | flex | border); row2.push_back(inp_an->Render() | size(WIDTH, EQUAL, 12) | border);
-        form.push_back(hbox(row2));
-        
-        form.push_back(inp_editura->Render() | border);
-        form.push_back(inp_locatie->Render() | border);
-        form.push_back(btn_add->Render() | center);
-        form.push_back(text(state.mesaj_actiune) | color(Color::Yellow) | center);
+        form.push_back(text("Adaugare Carte Noua") | bold);
+        form.push_back(inp_t1_titlu->Render() | border);
+        form.push_back(inp_t1_autor->Render() | border);
+        form.push_back(inp_t1_loc->Render() | border);
+        form.push_back(inp_t1_stoc->Render() | border);
+        form.push_back(btn_t1_add->Render() | center);
         content = vbox(form);
     } 
-    else if (tab_biblio_index == 1) {
+    else if (tab_index == 1) {
         Elements inv;
-        inv.push_back(text("Inventar Complet (toate cartile)") | bold | underlined);
-        for(auto& c : state.biblio.getCartiFormatate()) inv.push_back(text(" " + c));
-        if(inv.size() == 1) inv.push_back(text(" Nicio carte in inventar.") | dim);
-        inv.push_back(btn_back_inv->Render() | center);
-        content = vbox(inv);
+        auto carti = state.biblio.getToateCartile();
+        inv.push_back(text("Total titluri in inventar: " + std::to_string(carti.size())) | bold | color(Color::Cyan));
+        inv.push_back(separator());
+        for(auto& c : carti) inv.push_back(text("  " + c));
+        if(carti.empty()) inv.push_back(text("  Inventar gol.") | dim);
+        content = vbox(inv) | flex;
     } 
-    else if (tab_biblio_index == 2) {
-        Elements gest;
-        gest.push_back(text("Carti Imprumutate Activ") | bold | underlined);
-        for(auto& c : state.biblio.getCartiImprumutate()) gest.push_back(text(" ⚠️ " + c) | color(Color::Yellow));
-        if(gest.size() == 1) gest.push_back(text(" Nu sunt carti imprumutate momentan.") | dim);
-        
-        gest.push_back(separator());
-        gest.push_back(text("Actiuni Administrative:") | bold);
-        gest.push_back(hbox({inp_id_return->Render() | size(WIDTH, EQUAL, 12) | border, btn_force_return->Render(), btn_extend->Render()}));
-        content = vbox(gest);
+    else if (tab_index == 2) {
+        Elements loans;
+        auto imprumutate = state.biblio.getToateImprumuturile();
+        loans.push_back(text("Carti imprumutate activ: " + std::to_string(imprumutate.size())) | bold | color(Color::Red));
+        for(auto& c : imprumutate) loans.push_back(text("  ⚠️ " + c) | color(Color::Yellow));
+        if(imprumutate.empty()) loans.push_back(text("  Nicio carte imprumutata momentan.") | dim);
+        loans.push_back(separator());
+        loans.push_back(text("Actiuni Administrative (dupa ID):") | bold);
+        loans.push_back(inp_t3_id->Render() | border);
+        loans.push_back(hbox({btn_t3_return->Render(), btn_t3_extend->Render()}));
+        content = vbox(loans) | flex;
+    }
+    else if (tab_index == 3) {
+        auto total = state.biblio.getToateCartile().size();
+        auto active = state.biblio.getToateImprumuturile().size();
+
+        Elements stats;
+        stats.push_back(text("📦 RECEPTIE MARFA (Adaugare Multipla)") | bold | color(Color::Magenta));
+        stats.push_back(text("Foloseste pentru a adauga rapid mai multe exemplare din aceeasi carte."));
+        stats.push_back(separator());
+        stats.push_back(inp_t4_titlu->Render() | border);
+        stats.push_back(inp_t4_autor->Render() | border);
+        stats.push_back(inp_t4_cantitate->Render() | border);
+        stats.push_back(btn_t4_receptie->Render() | center);
+        stats.push_back(separator());
+        stats.push_back(text("--- STATISTICI RAPIDE ---") | bold);
+        stats.push_back(text("Total titluri in sistem: " + std::to_string(total)));
+        stats.push_back(text("Imprumuturi active: " + std::to_string(active)));
+        content = vbox(stats);
     }
 
-    return window(text(" 📚 PANOU BIBLIOTECAR PRO "), vbox({
-        header_tabs,
-        content | flex,
-        btn_back->Render() | center
-    })) | flex;
+    Elements final_content;
+    final_content.push_back(header);
+    final_content.push_back(content | flex);
+    final_content.push_back(text(state.mesaj_actiune) | color(Color::Yellow) | center | border);
+    final_content.push_back(btn_back->Render() | center);
+    
+    return window(text("  BIBLIOTECAR DASHBOARD "), vbox(final_content)) | flex;
 }
