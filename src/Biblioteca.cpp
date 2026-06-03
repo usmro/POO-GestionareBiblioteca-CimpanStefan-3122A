@@ -218,21 +218,37 @@ bool Biblioteca::prelungesteImprumut(int id_carte) { return true; }
 
 std::vector<std::string> Biblioteca::iaTendinteOnline() {
     std::vector<std::string> rezultate;
-    std::string url = "https://openlibrary.org/search.json?q=bestseller&limit=5&sort=rating"; 
-    auto r = cpr::Get(cpr::Url{url}, cpr::Timeout{3000});
+    std::string url = "https://openlibrary.org/search.json?q=bestseller&limit=5&sort=rating";
+    
+    auto r = cpr::Get(
+        cpr::Url{url},
+        cpr::Timeout{10000},
+        cpr::VerifySsl(false)
+    );
+
     if (r.status_code == 200) {
         try {
             auto j = nlohmann::json::parse(r.text);
-            if (j.contains("docs")) {
+            if (j.contains("docs") && !j["docs"].empty()) {
                 for (auto& carte : j["docs"]) {
                     std::string titlu = carte.value("title", "Titlu necunoscut");
                     std::string autor = "Autor necunoscut";
-                    if (carte.contains("author_name") && !carte["author_name"].empty()) autor = carte["author_name"][0].get<std::string>();
-                    rezultate.push_back(titlu + " - " + autor);
+                    if (carte.contains("author_name") && !carte["author_name"].empty()) {
+                        autor = carte["author_name"][0].get<std::string>();
+                    }
+                    rezultate.push_back("🌟 " + titlu + " - " + autor);
                 }
             }
-        } catch (...) { rezultate.push_back("Eroare JSON."); }
-    } else { rezultate.push_back("Eroare conexiune."); }
+        } catch (...) {
+            rezultate.push_back("Eroare la procesarea datelor.");
+        }
+    } else {
+        rezultate.push_back("Eroare conexiune. Se afiseaza tendinte locale:");
+        rezultate.push_back("🌟 Stapanul Inelelor - J.R.R. Tolkien");
+        rezultate.push_back("🌟 Dune - Frank Herbert");
+        rezultate.push_back("🌟 Ion - Liviu Rebreanu");
+    }
+    
     return rezultate;
 }
 
